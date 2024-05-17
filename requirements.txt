@@ -7,9 +7,6 @@
 serial
 pandas
 statistics
-time
-os
 pyserial
-pyserial-tool
 openpyxl
 XlsxWriter

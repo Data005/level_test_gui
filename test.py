@@ -65,6 +65,10 @@ def collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc
         Adj_Int = {}
         Device_id = {}
 
+        Trend_mean = {}
+        Trend_stdev = {}
+        Trend_CV = {}
+        Trend_Range = {}
 
         for idx, arduino in enumerate(connected_device_info.connected_device_list):
             
@@ -136,19 +140,19 @@ def collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc
 
         print(f"Rejected Device List: {discontinued}")
 
-        all_device_single_run_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}':[] for port in port_list}
+        all_device_single_run_data = {f'{Device_id[port]}_{wavelength}_{level}_{run+1}':[] for port in port_list}
         for port in port_list:
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Version[port])
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(wavelength)
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(DAC[port])
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Current[port])
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Adj_Int[port])
+            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(Version[port])
+            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(wavelength)
+            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(DAC[port])
+            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(Current[port])
+            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(Adj_Int[port])
 
 
         while arduino_list:
             for arduino, port in zip(arduino_list, port_list):
                 value = connected_device_info.read_data(arduino).split(' ')[0]
-                all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value)
+                all_device_single_run_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(value)
                 print(f"{port} : {run + 1} :: {value}")
                 # Check for specific conditions in the value received
                 if 'DAC' in value or 'Fault' in value or 'Runaway' in value or 'Done' in value:
@@ -162,32 +166,20 @@ def collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc
         
         flattened_data = [list(value) for value in all_device_single_run_data.values()]
 
-        # Check the structure
-        print("Flattened data:")
-        for i, data in enumerate(flattened_data):
-            print(f"Column {i}: {data}, Length: {len(data)}")
+        # Create DataFrame without 'Key' column
+        columns = [f'Value_{i}' for i in range(len(flattened_data[0]))]
+        df = pd.DataFrame(flattened_data, columns=columns)
 
-        # Extracting the column names
-        columns = list(all_device_single_run_data.keys())
+        # Transpose DataFrame
+        df_transposed = df.T.reset_index()
 
-        # Check column names
-        print("Columns:", columns)
+        # Rename the index column to 'Key'
+        df_transposed = df_transposed.rename(columns={'index': 'Key'})
 
-        num_columns = len(columns)
-        num_rows = len(flattened_data[0]) if flattened_data else 0
-        for col_data in flattened_data:
-            if len(col_data) != num_rows:
-                raise ValueError(f"Column data length mismatch. Expected {num_rows}, but got {len(col_data)}")
+        # Save transposed DataFrame to CSV
+        df_transposed.to_csv(f'sheet_run{run + 1}_transposed.csv', index=False, header=False)
 
-        df = pd.DataFrame(flattened_data).T  # Transpose to match columns
-        df.columns = columns
-        
-        # data_process(df)
-
-
-        # df.to_csv(f'sheet_run{run + 1}.csv', index=False, header=True)
-        
-
+        print(df_transposed)
 
     return 0,0
 

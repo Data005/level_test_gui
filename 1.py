@@ -1,22 +1,3 @@
-# Develped by Utpal Saikia
-# Version 1.0.2 (Date: 25 Dec, 2023)
-
-# Also download and install cp2102 driver
-# Install the relevant libraries
-# pip install serial
-# pip install time
-# pip install pandas
-# pip install numpy
-# pip install os
-# pip install statistics
-# pip install pyserial
-# pip install serial.tools
-# pip install openpyxl
-# pip install XlsxWriter
-
-#*******************************************************************************************************************************
-
-# Import the relevant libraries
 import serial
 import time
 import os
@@ -90,6 +71,7 @@ for wavelength in wavelength_list:
     for level in level_list:
         # Creating empty dictionaries of Runs and Ports to store data
         all_data = dict()
+
         for num in range(len(port_list)):
             run_dict = dict()
             errors_dict = dict()  
@@ -132,13 +114,12 @@ for wavelength in wavelength_list:
             end_operation_flag = 0      # Initiating completion flag
 
             def write(x):
-                data = arduino.write(bytes(x, 'utf-8'))
+                arduino.write(bytes(x, 'utf-8'))
                 data = arduino.readline()
                 return data
 
             file_data = []
             for i in range(1):
-
                 # Read
                 value = arduino.readline()
                 decoded_value = str(value, 'utf-8')
@@ -147,9 +128,6 @@ for wavelength in wavelength_list:
                 file_data.append(decoded_value)
                 if decoded_value == str():
                     value = arduino.write(bytes('r', 'utf-8'))
-            #         decoded_value = str(value)
-            #         print(decoded_value)
-            #         file_data.append(decoded_value)
                     continue
 
                 # Write
@@ -317,7 +295,6 @@ for wavelength in wavelength_list:
 
 
             time.sleep(delay)
-
         #*******************************************************************************************************************************    
         # Data Cleaning function
         def func_clean(file_data):
@@ -469,6 +446,7 @@ for wavelength in wavelength_list:
         df_all
 
         df_dac_sat_cases = pd.DataFrame(columns = device_IDS)
+    
         for dev in device_IDS:
             df_dac_sat_cases[dev] = [np.nan]*15
             size = len(all_data[dev]['Error cases']['DAC sat cases'])
@@ -509,7 +487,7 @@ for wavelength in wavelength_list:
             size = len(all_data[dev]['Error cases']['Charge the device cases'])
             df_charge_fault_cases.loc[:size-1, dev] = all_data[dev]['Error cases']['Charge the device cases']
         print(df_charge_fault_cases)
-
+    
 
         #********************************************************************************************************************************
         # Data saving code
@@ -568,3 +546,6 @@ for wavelength in wavelength_list:
                 f.close()
                 
 print("Files can be found in this location", file_path)
+
+
+
