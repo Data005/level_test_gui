@@ -4,48 +4,7 @@ import pandas as pd
 import statistics as sts
 import time
 import datetime
-
-
-
-
-
-class ArduinoController: 
-    def __init__(self, port_list):
-        self.connected_device_list = []
-        for port in port_list:
-            self.connected_device_list.append(serial.Serial(port=port, baudrate=115200, timeout=2))
-
-    def write_data(self, arduino, command) : arduino.write(bytes(command, 'utf-8'))
-        
-    def read_data(self, arduino) : return arduino.readline().decode('utf-8')
-
-    def close_connections(self): 
-        for arduino in self.connected_device_list:
-            arduino.close()
-
-
-def setup_serial_ports():
-    import serial.tools.list_ports as sp
-    ports = sp.comports()
-    lst = [str(single_port).split('-')[0].strip() for single_port in ports]
-    print(lst)
-    return lst
-
-
-def read_user_input(prompt, valid_options):
-    while True:
-        try:
-            user_input = int(input(prompt))
-            if user_input not in valid_options:
-                raise ValueError
-            return user_input
-        except ValueError:
-            print('Invalid input! Please try again.')
-
-
-# def data_process(df):
-
-
+from data_process import data_process
 
 def collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc_name):
     all_data = {}
@@ -136,19 +95,28 @@ def collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc
 
         print(f"Rejected Device List: {discontinued}")
 
-        all_device_single_run_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}':[] for port in port_list}
+        all_device_single_run_Intensity_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}':[] for port in port_list}
+        all_device_single_run_current_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}':[] for port in port_list}
+
         for port in port_list:
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Version[port])
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(wavelength)
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(DAC[port])
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Current[port])
-            all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Adj_Int[port])
+            all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Version[port])
+            all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(wavelength)
+            all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(DAC[port])
+            all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Current[port])
+            all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Adj_Int[port])
+
+            all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Version[port])
+            all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(wavelength)
+            all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(DAC[port])
+            all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Current[port])
+            all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Adj_Int[port])
 
 
         while arduino_list:
             for arduino, port in zip(arduino_list, port_list):
                 value = connected_device_info.read_data(arduino).split(' ')[0]
-                all_device_single_run_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value)
+                all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value.split(',')[0])
+                all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value)
                 print(f"{port} : {run + 1} :: {value}")
                 # Check for specific conditions in the value received
                 if 'DAC' in value or 'Fault' in value or 'Runaway' in value or 'Done' in value:
@@ -158,81 +126,33 @@ def collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc
                     port_list.remove(port)
 
         import json
-        print(json.dumps(all_device_single_run_data, indent = 4))
+        print(json.dumps(all_device_single_run_Intensity_data, indent = 4))
         
-        flattened_data = [list(value) for value in all_device_single_run_data.values()]
+        flattened_intensity_data = [list(value) for value in all_device_single_run_Intensity_data.values()]
+        flattened_current_data = [list(value) for value in all_device_single_run_current_data.values()]
 
         # Check the structure
         print("Flattened data:")
-        for i, data in enumerate(flattened_data):
+        for i, data in enumerate(flattened_intensity_data):
             print(f"Column {i}: {data}, Length: {len(data)}")
 
         # Extracting the column names
-        columns = list(all_device_single_run_data.keys())
+        columns = list(all_device_single_run_Intensity_data.keys())
 
         # Check column names
         print("Columns:", columns)
 
         num_columns = len(columns)
-        num_rows = len(flattened_data[0]) if flattened_data else 0
-        for col_data in flattened_data:
+        num_rows = len(flattened_intensity_data[0]) if flattened_intensity_data else 0
+        for col_data in flattened_intensity_data:
             if len(col_data) != num_rows:
                 raise ValueError(f"Column data length mismatch. Expected {num_rows}, but got {len(col_data)}")
 
-        df = pd.DataFrame(flattened_data).T  # Transpose to match columns
+        df = pd.DataFrame(flattened_intensity_data).T  # Transpose to match columns
+        cdf = pd.DataFrame(flattened_current_data).T  # Transpose to match columns
+
         df.columns = columns
+        cdf.columns = columns
         
-        # data_process(df)
-
-
-        # df.to_csv(f'sheet_run{run + 1}.csv', index=False, header=True)
-        
-
-
-    return 0,0
-
-
-def main():
-    pc_name = os.getcwd().split('\\')[2].upper() + "_PC"
-    print(pc_name)
-
-    print("**Note: Use all devices of only one wavelength at a time")
-    print("**Note: Fully charge the devices to run L5")
-    print("**Note: Count all active ports in device manager, which should be equal to the number of devices connected.")
-    print("**Note: Make sure that Bluetooth in the PC/Laptop is turned off")
-
-    time_dur = 1
-    repeats = 1
-    delay = 10
-    level_list = [1]
-
-    valid_wavelengths = [1, 2, 3]
-    wv_type = read_user_input("Enter 1 for dual device, 2 for 367 device, 3 for 405 device : ", valid_wavelengths)
-
-    if wv_type == 1:
-        wavelength_list = [528, 620]
-    elif wv_type == 2:
-        wavelength_list = [367]
-    else:
-        wavelength_list = [405]
-
-    port_list = setup_serial_ports()
-    connected_device_info = ArduinoController(port_list)
-    output_dir = "data"
-    try:
-        loop = 1
-        for wavelength in wavelength_list:
-            for level in level_list:
-                print(f'loop no {loop}----------------------------------------')
-                loop+=1
-                all_data, error_cases = collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc_name)
-                # processed_data = process_data(all_data)
-                # save_data(processed_data, error_cases, output_dir, pc_name, wavelength, level,"10110")
-                time.sleep(delay)
-    finally:
-        connected_device_info.close_connections()
-        print("Files can be found in this location: ", output_dir)
-
-
-if __name__ == "__main__":
-    main()
+        final = data_process(df)
+        final.to_csv('data/main.csv')
