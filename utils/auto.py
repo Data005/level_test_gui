@@ -4,8 +4,13 @@ import pandas as pd
 import statistics as sts
 import time
 import datetime
+from tkinter import *
+from tkinter import ttk
 from data_process import data_process
 from collect_data import collect_data
+from gui import *
+from calibration import *
+
 
 class ArduinoController: 
     def __init__(self, port_list):
@@ -45,41 +50,40 @@ def main():
     pc_name = os.getcwd().split('\\')[2].upper() + "_PC"
     print(pc_name)
 
-    print("**Note: Use all devices of only one wavelength at a time")
-    print("**Note: Fully charge the devices to run L5")
-    print("**Note: Count all active ports in device manager, which should be equal to the number of devices connected.")
-    print("**Note: Make sure that Bluetooth in the PC/Laptop is turned off")
-
-    time_dur = 1
-    repeats = 2
-    delay = 10
-    level_list = [1]
-
-    valid_wavelengths = [1, 2, 3]
-    wv_type = read_user_input("Enter 1 for dual device, 2 for 367 device, 3 for 405 device : ", valid_wavelengths)
-
-    if wv_type == 1:
-        wavelength_list = [528, 620]
-    elif wv_type == 2:
-        wavelength_list = [367]
-    else:
-        wavelength_list = [405]
-
     port_list = setup_serial_ports()
     connected_device_info = ArduinoController(port_list)
+
+
+    root = Tk()
+    root.title("Device Stability Testing")
+    root.geometry("810x490")
+
+
+    f1 = Frame(root, bg="gray", width=500, height=490)
+    f1.pack(side=RIGHT, fill=Y)
+        
+    text_box = Text(root, bg="black", fg="white", height=200, state=DISABLED)
+    text_box.pack(expand=True, fill="x", padx=10, pady=10)
+    
+    button_list = get_device_and_port_id(connected_device_info)
+    level_options = ['1', '5']
+    wavelength_options = ['528', '620', '367']
+    duration_options = ['1', '5', '15']
+
+
+    device_config = create_buttons_with_dropdowns(f1, button_list, level_options, wavelength_options, duration_options, text_box, root)
+    # calibration(connected_device_info, root)
+
+    root.mainloop()
+    
+
     output_dir = "data"
-    try:
-        loop = 1
-        for wavelength in wavelength_list:
-            for level in level_list:
-                print(f'loop no {loop}----------------------------------------')
-                loop+=1
-                collect_data(connected_device_info, wavelength, level, repeats, time_dur, pc_name)
+    collect_data(connected_device_info, device_config, pc_name, text_box)
                 
-                time.sleep(delay)
-    finally:
-        connected_device_info.close_connections()
-        print("Files can be found in this location: ", output_dir)
+
+    connected_device_info.close_connections()
+    print("Files can be found in this location: ", output_dir)
+
 
 
 if __name__ == "__main__":

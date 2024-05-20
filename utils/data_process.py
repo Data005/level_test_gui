@@ -1,10 +1,11 @@
 import pandas as pd
+import numpy as np
 import statistics as sts
 
 def data_process(df):
     try:
         # Load the main DataFrame; if not present, create a new one
-        main = pd.read_csv('data\main.csv')
+        main = pd.read_csv('data/main.csv')
     except FileNotFoundError:
         main = pd.DataFrame()
 
@@ -15,14 +16,20 @@ def data_process(df):
     trend_range = []
 
     # Process data from row 6 onwards, excluding the last row
-    df_mini = df[6:-1]
+    df_mini = df.iloc[6:-1]
     
     for col in column_list:
-        data = df_mini[col].astype(float).tolist()
+        # Convert data to float, handling missing values gracefully
+        data = pd.to_numeric(df_mini[col], errors='coerce')
+        # Remove NaNs before calculating statistics
+        data = data.dropna()
+        
         mean_val = sts.mean(data)
         std_val = sts.stdev(data)
-        cv_percent_val = (std_val / mean_val) * 100
-        range_val = int(max(data) - min(data))
+        
+        # Handle division by zero if mean is zero
+        cv_percent_val = (std_val / mean_val) * 100 if mean_val != 0 else np.nan
+        range_val = int(max(data) - min(data)) if len(data) > 1 else np.nan
         
         trend_mean.append(round(mean_val, 2))
         trend_std.append(round(std_val, 3))
@@ -37,10 +44,8 @@ def data_process(df):
         'Range': trend_range
     }, index=column_list).transpose()
     
-    
     # Insert the statistics DataFrame into the original DataFrame at index 5
     df = pd.concat([df.iloc[:5], stats_df, df.iloc[5:]]).reset_index(drop=True)
-    
     
     # Add the new df to the main df according to column names
     main = pd.concat([main, df], axis=1)
