@@ -12,7 +12,6 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
     all_data = {}
     error_cases = {}
     repeats = 1
-    print(json.dumps(device_config,indent=4))
 
     for i in range(3):
         for j in range(2): 
@@ -35,9 +34,9 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                     port = arduino.port
 
                     Device_test_count += 1
-                    print_to_text_box(f'Device Test count : {Device_test_count} :: port : {port}', text_box)
 
                     device_id = next((key for key in device_config.keys() if key.split('_')[1] == port), None)
+
 
                     # Add a check to ensure device_id is not None
                     if device_id is not None:
@@ -56,18 +55,16 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                         continue
 
 
-
+                    
                     print_to_text_box(f'Test count : {Device_test_count} :::: Port : {port} :: Device ID : {device_id} :: Wavelength : {wavelength} :: Level {level}', text_box)
 
                     line = ""
-
                     while True:
                         try:
                             line = connected_device_info.read_data(arduino)
                         except serial.SerialException as e:
                             print(f"Error reading data from {port}: {e}")
                             print_to_text_box(f"Error reading data from {port}: {e}", text_box)
-
                             quick_check_flag = 1
                             break
 
@@ -113,7 +110,6 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                             connected_device_info.write_data(arduino, '%')
                             quick_check_flag = 1
                             print_to_text_box(f'{device_id} Failed :: {line}', text_box)
-
                             break
 
                         else:
@@ -123,11 +119,11 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                     if not quick_check_flag:
                         port_list.append(port)
                         arduino_list.append(arduino)
+                        
                     else:
                         discontinued.append(Device_id[port])
+
                 print_to_text_box(f'Calibration Completed List Of passed Devices :: {port_list}', text_box)
-
-
 
                 all_device_single_run_Intensity_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}': [] for port in port_list}
                 all_device_single_run_current_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}': [] for port in port_list}
@@ -153,14 +149,15 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                     for arduino, port in zip(arduino_list, port_list):
                         try:
                             value = connected_device_info.read_data(arduino).split(' ')[0]
+                            if "..." in value: continue
                         except serial.SerialException as e:
                             print(f"Error reading data from {port}: {e}")
                             arduino_list.remove(arduino)
                             port_list.remove(port)
                             continue
 
-                        all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value.split(',')[0])
-                        all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value)
+                        all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(value.split(',')[0])
+                        all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run+1}'].append(value)
                         print(f"{port} : {run + 1} :: {value}")
 
                         if 'DAC' in value or 'Fault' in value or 'Runaway' in value or 'Done' in value:
@@ -203,3 +200,4 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
 
                 final = data_process(df)
                 final.to_csv('data/main.csv', index=False)
+                print_to_text_box(f'Wave {run} Complete :: Data pushed to Local Repository------------------------------', text_box)
