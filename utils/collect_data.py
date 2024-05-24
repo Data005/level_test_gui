@@ -4,18 +4,18 @@ import pandas as pd
 import statistics as sts
 import time
 import datetime
-from gui import *
-from data_process import data_process
+from utils.gui import *
+from utils.data_process import data_process
 import json
 
 def collect_data(connected_device_info, device_config, user_id, text_box):
     all_data = {}
     error_cases = {}
-    repeats = 1
-    print(json.dumps(device_config,indent=4))
+    repeats = 6
+    print(json.dumps(device_config, indent=4))
 
     for i in range(3):
-        for j in range(2): 
+        for j in range(2):
             for run in range(repeats):
                 Device_test_count = 0
 
@@ -29,35 +29,27 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                 Adj_Int = {}
                 Device_id = {}
 
-                # device calibration loop -----------------------------------------------------------------------------------------------------------------------------------------------------
+                # Device calibration loop
                 for idx, arduino in enumerate(connected_device_info.connected_device_list):
                     quick_check_flag = 0
                     port = arduino.port
 
                     Device_test_count += 1
-                    print_to_text_box(f'Device Test count : {Device_test_count} :: port : {port}', text_box)
 
-                    device_id = next((key for key in device_config.keys() if key.split('_')[1] == port), None)
+                    device_id = next((key for key in device_config.keys() if key.split('-')[1] == port), None)
 
-                    # Add a check to ensure device_id is not None
                     if device_id is not None:
-                        # Check if there are elements to pop in wavelength and level lists
-                        if device_config[device_id][2]:
-                            text = device_config[device_id][2].pop(0)
+                        if device_config[device_id]:
+                            text = device_config[device_id].pop(0)
                             wavelength = text.split("_")[0]
                             level = text.split("_")[1]
                         else:
                             print_to_text_box('Done for the Day', text_box)
                             break
                         duration = '1'
-                        user_id = "shobhit"
                     else:
                         print(f"No device configuration found for port {port}. Skipping...")
                         continue
-
-
-
-                    print_to_text_box(f'Test count : {Device_test_count} :::: Port : {port} :: Device ID : {device_id} :: Wavelength : {wavelength} :: Level {level}', text_box)
 
                     line = ""
 
@@ -65,9 +57,8 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                         try:
                             line = connected_device_info.read_data(arduino)
                         except serial.SerialException as e:
-                            print(f"Error reading data from {port}: {e}")
-                            print_to_text_box(f"Error reading data from {port}: {e}", text_box)
-
+                            print(f"Error reading data from {device_id} ------ {port}")
+                            print_to_text_box(f"Error reading data from {device_id} ------ {port}", text_box)
                             quick_check_flag = 1
                             break
 
@@ -112,8 +103,7 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                         elif 'DAC has saturated ' in line or 'Fault' in line or 'Runaway' in line or 'Done' in line or 'Charge the device' in line:
                             connected_device_info.write_data(arduino, '%')
                             quick_check_flag = 1
-                            print_to_text_box(f'{device_id} Failed :: {line}', text_box)
-
+                            print_to_text_box(f'{device_id} Failed During Calibration :: {line} :: {wavelength} :: {level}', text_box)
                             break
 
                         else:
@@ -124,74 +114,68 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                         port_list.append(port)
                         arduino_list.append(arduino)
                     else:
-                        discontinued.append(Device_id[port])
-                print_to_text_box(f'Calibration Completed List Of passed Devices :: {port_list}', text_box)
+                        if port in Device_id:
+                            discontinued.append(Device_id[port])
 
+                all_device_single_run_Intensity_data = {f'{Device_id[port]}_{wavelength}_{level}_{run + 1}': [] for port in port_list}
+                all_device_single_run_current_data = {f'{Device_id[port]}_{wavelength}_{level}_{run + 1}': [] for port in port_list}
 
-
-                all_device_single_run_Intensity_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}': [] for port in port_list}
-                all_device_single_run_current_data = {f'{Device_id[port]}_{wavelength}_L{level}_{run+1}': [] for port in port_list}
-
-
-                # calibration data append here ------------------------------------------------------------------------------------------------------------------------------------------------
+                # Calibration data append here
                 for port in port_list:
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Version[port])
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(wavelength)
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(DAC[port])
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Current[port])
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Adj_Int[port])
+                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Version[port])
+                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(wavelength)
+                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(DAC[port])
+                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Current[port])
+                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Adj_Int[port])
 
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Version[port])
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(wavelength)
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(DAC[port])
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Current[port])
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(Adj_Int[port])
+                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Version[port])
+                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(wavelength)
+                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(DAC[port])
+                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Current[port])
+                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Adj_Int[port])
 
-
-                # Data generation here --------------------------------------------------------------------------------------------------------------------------------------------------------
+                # Data generation here
                 while arduino_list:
                     for arduino, port in zip(arduino_list, port_list):
                         try:
                             value = connected_device_info.read_data(arduino).split(' ')[0]
                         except serial.SerialException as e:
-                            print(f"Error reading data from {port}: {e}")
+                            print(f"Error reading data from {device_id} ------ {port}")
+                            all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append("Connection Loss")
                             arduino_list.remove(arduino)
                             port_list.remove(port)
                             continue
-
-                        all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value.split(',')[0])
-                        all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'].append(value)
+                        
+                        if '...' in value:
+                            continue
+                        
+                        all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(value.split(',')[0])
+                        all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(value)
                         print(f"{port} : {run + 1} :: {value}")
 
                         if 'DAC' in value or 'Fault' in value or 'Runaway' in value or 'Done' in value:
                             if 'Done' in value:
-                                all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'][-1] = user_id
-                                all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_L{level}_{run+1}'][-1] = user_id
+                                all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'][-1] = user_id
+                                all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'][-1] = user_id
+                            print_to_text_box(f'{device_id} Failed During Data Generation :: {value} :: {wavelength} :: {level}', text_box)
                             connected_device_info.write_data(arduino, '%')
                             arduino_list.remove(arduino)
                             port_list.remove(port)
 
-
-                # data processing -------------------------------------------------------------------------------------------------------------------------------------------------------------
-               
-                # Your existing code to flatten the data
+                # Data processing
                 flattened_intensity_data = [list(value) for value in all_device_single_run_Intensity_data.values()]
                 flattened_current_data = [list(value) for value in all_device_single_run_current_data.values()]
 
-                # Pad shorter rows with zeros to match the length of the longest row
                 if flattened_intensity_data:
                     max_row_length = max(len(data) for data in flattened_intensity_data)
                 else:
-                    # Handle the case where flattened_intensity_data is empty
                     print("Error: No data available for processing.")
+                    continue
 
                 for data in flattened_current_data:
                     data.extend([0] * (max_row_length - len(data)))
 
-                # Rest of your code remains unchanged
-
                 columns = list(all_device_single_run_Intensity_data.keys())
-
                 num_columns = len(columns)
                 num_rows = max_row_length
 

@@ -6,8 +6,6 @@ import pages.login_page as login_page
 def show_login_page(root):
     login_page.setup_login_page(root)
 
-def show_home_page(root):
-    home_page.setup_home_page(root)
 
 def main():
     root = tk.Tk()

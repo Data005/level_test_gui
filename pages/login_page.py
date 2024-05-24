@@ -1,9 +1,9 @@
 import tkinter as tk
-import pages.home_page as home_page
+from utils.auto import main
 
 def verify_login(username, password):
     # Dummy verification logic, replace with your actual authentication process
-    return username == "admin" and password == "password"
+    return username == "id_1714" and password == "password"
 
 def login_button_clicked(root, username_entry, password_entry):
     username = username_entry.get()
@@ -11,7 +11,7 @@ def login_button_clicked(root, username_entry, password_entry):
     
     if verify_login(username, password):
         root.destroy()  # Close current window
-        home_page.setup_home_page()
+        main(username)
 
 def setup_login_page(root):
     # username_label = tk.Label(root, text="Username:")
