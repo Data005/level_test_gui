@@ -11,7 +11,7 @@ import json
 def collect_data(connected_device_info, device_config, user_id, text_box):
     all_data = {}
     error_cases = {}
-    repeats = 6
+    repeats = 5
     print(json.dumps(device_config, indent=4))
 
     for i in range(3):
@@ -40,7 +40,10 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
 
                     if device_id is not None:
                         if device_config[device_id]:
-                            text = device_config[device_id].pop(0)
+                            if run == 4 :
+                                text = device_config[device_id].pop(0)
+                            else : 
+                                text = device_config[device_id][0]
                             wavelength = text.split("_")[0]
                             level = text.split("_")[1]
                         else:
