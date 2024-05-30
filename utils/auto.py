@@ -59,8 +59,9 @@ def main(username):
 
     def collect_data_wrapper(): collect_data(connected_device_info, device_config, username, text_box)
 
-    def filter_and_save_excel_wrapper(): filter_and_save_excel()  # Ensure this function is defined elsewhere
+    def filter_and_save_excel_wrapper(): filter_and_save_excel()  
 
+    def create_summary(): summery()
 
 
     port_list = setup_serial_ports()
@@ -89,7 +90,7 @@ def main(username):
     update_text_box()
     
     for button in button_list:
-        if "VB" in button:
+        if "VB" in button or "10" in button:
             device_config[button] = [["528", "620"], ["L1", "L5"],[]]
         elif "DUO" in button:
             device_config[button] = [["528", "620", "367"], ["L1", "L5"],[]]
@@ -110,6 +111,9 @@ def main(username):
     filter_excel_button = ttk.Button(button_frame, text="Filter and Save Excel", command=filter_and_save_excel_wrapper, style="TButton")
     filter_excel_button.pack(side=LEFT, padx=5)
 
+    filter_excel_button = ttk.Button(button_frame, text="Summary", command=create_summary, style="TButton")
+    filter_excel_button.pack(side=LEFT, padx=5)
+     
     root.mainloop()
 
     connected_device_info.close_connections()

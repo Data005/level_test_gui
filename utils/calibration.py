@@ -1,129 +1,86 @@
 import serial
 import os
 import pandas as pd
-import pandas as pd
+import re
+
 import statistics as sts
 import time
 import datetime
 from openpyxl import load_workbook, Workbook
 from utils.gui import print_to_text_box
 
+def summery():
+    # Define the list of keywords and their corresponding column names
+    keyword_column_mapping = {
+        "saturated": "DAC saturated",
+        "Fault": "Device Fault",
+        "Runaway 1": "Thermal Runaway 1",
+        "Runaway 2": "Thermal Runaway 2",
+        "Runaway 3": "Thermal Runaway 3"
+    }
 
-def get_device_data(device_id):
-    file_path = 'data/calibration_data.xlsx'
-    
-    df = pd.read_excel(file_path)
+    # Define wavelengths and sheets
+    wavelengths = ['528', '620', '367']
+    sheets = ['L1', 'L3', 'L5', 'L6', 'L7']
 
-    filtered_df = df[df['device id'] == device_id]
+    # Dictionary to store summary data for each wavelength
+    summary_data_dict = {}
 
-    if filtered_df.empty:
-        return []
+    # Iterate through each wavelength
+    for wavelength in wavelengths:
+        # Define summary columns
+        summary_columns = [
+            f'Oc Version ({wavelength})', f'Batch ({wavelength})', f'Lot ({wavelength})', f'Device ID(Manf.) ({wavelength})',
+            f'Status ({wavelength})', f'In date ({wavelength})', f'Out date ({wavelength})',
+            f'L1 Cv% ({wavelength})', f'L3 Cv% ({wavelength})', f'L5 Cv% ({wavelength})',
+            f'L6 Cv% ({wavelength})', f'L7 Cv% ({wavelength})', f'DAC saturated ({wavelength})',
+            f'Device Fault ({wavelength})', f'Thermal Runaway 1 ({wavelength})', f'Thermal Runaway 2 ({wavelength})',
+            f'Thermal Runaway 3 ({wavelength})', 'Issues'
+        ]
 
-    data_list = filtered_df[['batch no', 'lot no', 'wavelength', 'level', 'calibration issue']].values.tolist()
+        # Initialize an empty DataFrame for the summary data
+        summary_data = pd.DataFrame(columns=summary_columns)
 
-    return data_list
+        # Dictionary to store DataFrames for each sheet
+        dfs_wavelength = {}
 
+        # Loop through the sheet names and try to read each one
+        for sheet in sheets:
+            try:
+                dfs_wavelength[sheet] = pd.read_excel(f'data/{wavelength}_output.xlsx', sheet_name=sheet)
+            except Exception as e:
+                print(f"Skipping sheet {sheet} due to error: {e}")
 
-def calibration(connected_device_info):
-    file_path = 'data/calibration_data.xlsx'
-    df = pd.read_excel(file_path)
+        # Initialize device_list
+        device_list = set()
 
-    device_status = {}
-    
-    port_list = []
-    arduino_list = []
-    # discontinued = []
-
-    Version = {}
-    DAC = {}
-    Current = {}
-    Adj_Int = {}
-    Device_id = {}
-
-    loop_run = 0  # Initialize loop_run
-    run = 0  # Initialize run
-
-    for idx, arduino in enumerate(connected_device_info.connected_device_list):
-        quick_check_flag = 0
-        port = arduino.port
-        
-        loop_run += 1
-        print(f'Loop run : {loop_run} :: port : {port}')
-    
-        input_list = {
-            'ID': 'ID',
-            'level': '1',
-            'Wavelength': '528',+
-            'Duration': '1'
-        }
-
-        line = ""
-        while True:
-            line = connected_device_info.read_data(arduino)
-            print(f"{port} : {run + 1} :: {line}")
+        # Extract devices and compute mean CV%
+        for lvl_sheet_idx in list(dfs_wavelength.keys()):
+            for column in dfs_wavelength[lvl_sheet_idx].columns:
+                match = re.match(r'(.+?)_[^_]+_[^_]+_[^_]+$', column)
+                if match:
+                    device_list.add(match.group(1))
             
-            if line == "":
-                connected_device_info.write_data(arduino, "r")
+            for device in device_list:
+                device_run_list = [col for col in dfs_wavelength[lvl_sheet_idx].columns if device in col and col.split("_")[-1] in ['1', '2', '3', '4', '5']]
+                if device_run_list:
+                    mean_cv = dfs_wavelength[lvl_sheet_idx].loc[7, device_run_list].mean()
+                    column_name = f'{lvl_sheet_idx} Cv% ({wavelength})'
+                    summary_data.at[device, column_name] = mean_cv
+                    summary_data.at[device, f'Device ID(Manf.) ({wavelength})'] = device
+                    
+                    # Check for each keyword in the columns of device_run_list
+                    for keyword, column_name in keyword_column_mapping.items():
+                        keyword_found = sum(keyword.lower() in str(value).lower() for col in device_run_list for value in dfs_wavelength[lvl_sheet_idx][col])
+                        summary_data.at[device, f'{column_name} ({wavelength})'] = keyword_found
 
-            if 'Version' in line:
-                Version[port] = line.split(' : ')[1].strip()
-                print(f"-------------------------------------------------{Version[port]}")
-            if 'Device ID.' in line:
-                Device_id[port] = line.split(' : ')[1].strip()
-                print(f"-------------------------------------------------{Device_id[port]}")
-            if 'Adjusted Intensity' in line:
-                Adj_Int[port] = int(line.split(' : ')[1].strip())
-                print(f"--------------------------------------------------{Adj_Int[port]}")
-            if 'Current drawn' in line:
-                Current[port] = float(line.split(' : ')[1].split(' ')[0].strip())
-                print(f"-------------------------------------------------{Current[port]}")
-            if 'Adjusted DAC Value' in line:
-                DAC[port] = int(line.split(' : ')[1].strip())
-                print(f"-------------------------------------------------{DAC[port]}")
+        # Store the summary data in the dictionary
+        summary_data_dict[wavelength] = summary_data
 
-            if 'Mobile ID' in line:
-                command = input_list['ID']
-            elif 'level' in line:
-                command = input_list['level']
-            elif 'Wavelength' in line:
-                command = input_list['Wavelength']
-            elif 'Duration' in line: 
-                command = input_list['Duration']
-            elif 'Press Enter' in line:
-                connected_device_info.write_data(arduino, "r")
-                break
-            elif 'DAC has saturated ' in line or 'Fault' in line or 'Runaway' in line or 'Done' in line:
-                device_status[Device_id[port]] = line
-                connected_device_info.write_data(arduino, '%')
-                quick_check_flag = 1
-                break
-            else:
-                continue
-
-            connected_device_info.write_data(arduino, command)
-
-        if not quick_check_flag:
-            port_list.append(port)
-            arduino_list.append(arduino)
-        # else:
-        #     discontinued.append(Device_id[port])
-
-    for device_id in Device_id.values():
-        issue = device_status.get(device_id, 'NO Issue')
-        if issue != 'NO Issue':
-            df.loc[df['device id'] == device_id, 'calibration issue'] = issue
-        else:
-            device_data = get_device_data(device_id)
-            if not device_data:
-                continue
-
-            batch_no, lot_no, wavelength, level, _ = device_data[0]
-
-            df.loc[(df['device id'] == device_id) & (df['batch no'] == batch_no) & (df['lot no'] == lot_no) & (df['wavelength'] == wavelength) & (df['level'] == level), 'calibration issue'] = 'NO Issue'
-    
-    # Save the updated DataFrame back to the Excel file
-    df.to_excel(file_path, index=False)
-    print("save ho gya")
+    # Save all the summary data into a single Excel file
+    with pd.ExcelWriter('summary_output.xlsx') as writer:
+        for wavelength, summary_data in summary_data_dict.items():
+            summary_data.to_excel(writer, sheet_name=wavelength, index=True, na_rep='NaN')
 
 
 def get_device_and_port_id(connected_device_info, text_box):
@@ -228,3 +185,4 @@ def filter_and_save_excel(src_file='data/main.csv'):
     # Clean src file
     dff = pd.DataFrame()
     dff.to_csv(src_file, index=False)
+    

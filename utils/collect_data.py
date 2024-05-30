@@ -14,9 +14,16 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
     repeats = 5
     print(json.dumps(device_config, indent=4))
 
+    # Initialize dictionaries outside the loop
+
     for i in range(3):
         for j in range(2):
             for run in range(repeats):
+                all_device_single_run_Intensity_data = {}
+                all_device_single_run_current_data = {}
+
+
+
                 Device_test_count = 0
 
                 port_list = []
@@ -40,16 +47,16 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
 
                     if device_id is not None:
                         if device_config[device_id]:
-                            if run == 4 :
+                            if run == 4:
                                 text = device_config[device_id].pop(0)
-                            else : 
+                            else:
                                 text = device_config[device_id][0]
                             wavelength = text.split("_")[0]
                             level = text.split("_")[1]
                         else:
                             print_to_text_box('Done for the Day', text_box)
                             break
-                        duration = '1'
+                        duration = '15'
                     else:
                         print(f"No device configuration found for port {port}. Skipping...")
                         continue
@@ -107,6 +114,24 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                             connected_device_info.write_data(arduino, '%')
                             quick_check_flag = 1
                             print_to_text_box(f'{device_id} Failed During Calibration :: {line} :: {wavelength} :: {level}', text_box)
+                            
+                            key = f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'
+                            
+                            if key not in all_device_single_run_Intensity_data:
+                                all_device_single_run_Intensity_data[key] = []
+                            if key not in all_device_single_run_current_data:
+                                all_device_single_run_current_data[key] = []
+                            
+                            all_device_single_run_Intensity_data[key].extend([
+                                Version[port], wavelength, "N/A", 'N/A', 'N/A', line
+                            ])
+                            
+                            all_device_single_run_current_data[key].extend([
+                                Version[port], wavelength, 'N/A', 'N/A', 'N/A', line
+                            ])
+                            
+                            print(all_device_single_run_Intensity_data[key])
+                            print(all_device_single_run_current_data[key])
                             break
 
                         else:
@@ -120,22 +145,22 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                         if port in Device_id:
                             discontinued.append(Device_id[port])
 
-                all_device_single_run_Intensity_data = {f'{Device_id[port]}_{wavelength}_{level}_{run + 1}': [] for port in port_list}
-                all_device_single_run_current_data = {f'{Device_id[port]}_{wavelength}_{level}_{run + 1}': [] for port in port_list}
-
-                # Calibration data append here
+                # Append data to existing dictionary entries
                 for port in port_list:
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Version[port])
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(wavelength)
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(DAC[port])
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Current[port])
-                    all_device_single_run_Intensity_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Adj_Int[port])
-
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Version[port])
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(wavelength)
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(DAC[port])
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Current[port])
-                    all_device_single_run_current_data[f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'].append(Adj_Int[port])
+                    key = f'{Device_id[port]}_{wavelength}_{level}_{run + 1}'
+                    
+                    if key not in all_device_single_run_Intensity_data:
+                        all_device_single_run_Intensity_data[key] = []
+                    if key not in all_device_single_run_current_data:
+                        all_device_single_run_current_data[key] = []
+                    
+                    all_device_single_run_Intensity_data[key].extend([
+                        Version[port], wavelength, DAC[port], Current[port], Adj_Int[port]
+                    ])
+                    
+                    all_device_single_run_current_data[key].extend([
+                        Version[port], wavelength, DAC[port], Current[port], Adj_Int[port]
+                    ])
 
                 # Data generation here
                 while arduino_list:
@@ -167,6 +192,7 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
 
                 # Data processing
                 flattened_intensity_data = [list(value) for value in all_device_single_run_Intensity_data.values()]
+                print(flattened_intensity_data)
                 flattened_current_data = [list(value) for value in all_device_single_run_current_data.values()]
 
                 if flattened_intensity_data:
