@@ -10,3 +10,4 @@ statistics
 pyserial
 openpyxl
 XlsxWriter
+pyinstaller

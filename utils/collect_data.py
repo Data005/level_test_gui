@@ -22,8 +22,6 @@ def collect_data(connected_device_info, device_config, user_id, text_box):
                 all_device_single_run_Intensity_data = {}
                 all_device_single_run_current_data = {}
 
-
-
                 Device_test_count = 0
 
                 port_list = []

@@ -9,6 +9,7 @@ from utils.collect_data import collect_data
 from utils.calibration import *
 import json
 
+
 class ArduinoController:
     def __init__(self, port_list):
         self.connected_device_list = [

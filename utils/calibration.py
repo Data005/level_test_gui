@@ -9,6 +9,32 @@ import datetime
 from openpyxl import load_workbook, Workbook
 from utils.gui import print_to_text_box
 
+
+def get_device_and_port_id(connected_device_info, text_box):
+    device_port = []
+    df = pd.read_excel('data/calibration.xlsx', index_col=0)
+    
+    for idx, arduino in enumerate(connected_device_info.connected_device_list):
+        while True:
+            line = connected_device_info.read_data(arduino)
+            if 'Device ID.' in line:
+                Device_id = line.split(' : ')[1].strip()
+                device_port.append(f"{Device_id}-{arduino.port}")
+                
+                try:
+                    device_info = df.loc[Device_id]
+                    print(device_info)
+                except KeyError:
+                    print(f"Device ID {Device_id} not found in calibration data.")
+                
+                connected_device_info.write_data(arduino, '%')
+                connected_device_info.read_data(arduino)
+                break
+            connected_device_info.write_data(arduino, "r")
+    
+    return device_port
+
+
 def summery():
     # Define the list of keywords and their corresponding column names
     keyword_column_mapping = {
@@ -81,31 +107,6 @@ def summery():
     with pd.ExcelWriter('summary_output.xlsx') as writer:
         for wavelength, summary_data in summary_data_dict.items():
             summary_data.to_excel(writer, sheet_name=wavelength, index=True, na_rep='NaN')
-
-
-def get_device_and_port_id(connected_device_info, text_box):
-    device_port = []
-    df = pd.read_excel('data/calibration.xlsx', index_col=0)
-    
-    for idx, arduino in enumerate(connected_device_info.connected_device_list):
-        while True:
-            line = connected_device_info.read_data(arduino)
-            if 'Device ID.' in line:
-                Device_id = line.split(' : ')[1].strip()
-                device_port.append(f"{Device_id}-{arduino.port}")
-                
-                try:
-                    device_info = df.loc[Device_id]
-                    print(device_info)
-                except KeyError:
-                    print(f"Device ID {Device_id} not found in calibration data.")
-                
-                connected_device_info.write_data(arduino, '%')
-                connected_device_info.read_data(arduino)
-                break
-            connected_device_info.write_data(arduino, "r")
-    
-    return device_port
 
 
 def filter_and_save_excel(src_file='data/main.csv'):
